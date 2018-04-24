@@ -14,7 +14,11 @@
 
 use std::path::PathBuf;
 
-use sdl2::mixer::{self, Music};
+// use sdl2::mixer::{self, Music, INIT_OGG};
+
+use sdl2::mixer::{self, Music, DEFAULT_CHANNELS, INIT_MP3, INIT_FLAC, INIT_MOD, INIT_FLUIDSYNTH, INIT_MODPLUG,
+                  INIT_OGG, AUDIO_S16LSB};
+
 
 pub struct CoreAudio { music: Option<Music<'static>>, sounds: Vec<mixer::Chunk> }
 
@@ -22,20 +26,29 @@ impl CoreAudio {
     pub(crate) fn new(sound_count: u16) -> CoreAudio {
         let sounds: Vec<_> = (0..sound_count)
             .map(|id| PathBuf::from(format!("assets/sound{}.ogg", id)))
-            .map(|p| mixer::Chunk::from_file(p).unwrap())
+            .map(|p| mixer::Chunk::from_file(p).expect("failed to map audio"))
             .collect();
         CoreAudio { sounds, music: None }
     }
 
     pub fn play_sound(&mut self, sound: u16) {
+        let _mixer_context = mixer::init( INIT_OGG).unwrap();
         mixer::Channel::all().play(&self.sounds[sound as usize], 0).unwrap();
     }
 
     pub fn loop_music(&mut self, music: u16) {
+        let frequency = 44_100;
+        let format = AUDIO_S16LSB; // signed 16 bit samples, in little-endian byte order
+        let channels = DEFAULT_CHANNELS; // Stereo
+        let chunk_size = 1_024;
+        mixer::open_audio(frequency, format, channels, chunk_size).unwrap();
+    
+        let _mixer_context = mixer::init( INIT_OGG).expect("failed init");
+
         let music = &format!("assets/music{}.ogg", music);
         self.stop_music();
-        let music = mixer::Music::from_file(music).unwrap();
-        music.play(1_000_000).unwrap();
+        let music = mixer::Music::from_file(music).expect("failed from file");
+        music.play(1_000_000).expect("failed to play");
         self.music = Some(music);
     }
 
